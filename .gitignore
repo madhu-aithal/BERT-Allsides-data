@@ -1,0 +1,4 @@
+*.pickle
+saves/
+__pycache__
+.vscode
