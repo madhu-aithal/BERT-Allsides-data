@@ -5,8 +5,8 @@ from transformers import BertTokenizer
 from torch.utils.data import TensorDataset, random_split
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 # from transformers import BertForSequenceClassification, AdamW, BertConfig
-# from transformers import get_linear_schedule_with_warmup
-from transformers import BertTokenizer
+from transformers import get_linear_schedule_with_warmup
+from transformers import BertTokenizer, BertForSequenceClassification, AdamW
 import numpy as np
 import time
 import random
@@ -43,6 +43,9 @@ def flat_accuracy(preds, labels):
     
             # print(item['x'])
 
+# def collate_fn(data):
+#     print(data)
+
 def train_model(args: dict, hparams:dict):
     # Code for this function adopted from https://mccormickml.com/2019/07/22/BERT-fine-tuning/
     
@@ -76,9 +79,12 @@ def train_model(args: dict, hparams:dict):
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
     max_len = 0
 
-    samples = utils.read_samples(file
-    # , seed_val=seed_val
-    )
+    
+    # samples = utils.read_and_sample(file
+    # # , seed_val=seed_val
+    # )
+    samples = utils.read_pairwise(file, first=0, second=2)
+    
 
     random.shuffle(samples)
     input_ids = []
@@ -86,42 +92,58 @@ def train_model(args: dict, hparams:dict):
     
     samples_text = [val[0] for val in samples]
     samples_label = [val[1] for val in samples]
+
+    print(np.unique(np.array(samples_label)))
+
+    max_len = 0
+
+    # For every sentence...
+    for text in samples_text:
+
+        # Tokenize the text and add `[CLS]` and `[SEP]` tokens.
+        input_id = tokenizer(text, add_special_tokens=True)
+
+        # Update the maximum sentence length.
+        max_len = max(max_len, len(input_id['input_ids']))
+
+    logger.info('Max text length: ' + str(max_len))
+    print('Max text length: ' + str(max_len))
+
     for text in samples_text:        
         input_id = tokenizer(text, add_special_tokens=True)
-        if len(input_id) > 512:                        
-            if truncation == "tail-only":
-                input_id = [tokenizer.cls_token_id]+input_id[-511:]      
-            elif truncation == "head-and-tail":
-                input_id = [tokenizer.cls_token_id]+input_id[1:129]+input_id[-382:]+[tokenizer.sep_token_id]
-            else:
-                input_id = input_id[:511]+[tokenizer.sep_token_id]
+        # print(len(input_id['input_ids']))
+        # if len(input_id['input_ids']) > 512:                        
+        #     if truncation == "tail-only":
+        #         input_id = [tokenizer.cls_token_id]+input_id[-511:]      
+        #     elif truncation == "head-and-tail":
+        #         input_id = [tokenizer.cls_token_id]+input_id[1:129]+input_id[-382:]+[tokenizer.sep_token_id]
+        #     else:
+        #         input_id = input_id[:511]+[tokenizer.sep_token_id]
                 
-            input_ids.append(torch.tensor(input_id).view(1,-1))
-            attention_masks.append(torch.ones([1,len(input_id)], dtype=torch.long))
-        else:
-            encoded_dict = tokenizer.encode_plus(
-                                text,                      
-                                add_special_tokens = True,                                
-                                max_length = 512,         
-                                # pad_to_max_length = False,
-                                return_attention_mask = True,
-                                return_tensors = 'pt',
-                        )
-                        
-            input_ids.append(encoded_dict['input_ids'])
-                        
-            attention_masks.append(encoded_dict['attention_mask'])
+        #     input_ids.append(torch.tensor(input_id).view(1,-1))
+        #     attention_masks.append(torch.ones([1,len(input_id)], dtype=torch.long))
+        # else:
+        encoded_dict = tokenizer(
+                            text,                      
+                            add_special_tokens = True, 
+                            truncation=True,                               
+                            max_length = 512,         
+                            padding = 'max_length',
+                            return_attention_mask = True,
+                            return_tensors = 'pt',
+                    )
+                    
+        input_ids.append(encoded_dict['input_ids'])
+                    
+        attention_masks.append(encoded_dict['attention_mask'])
     
     input_ids = torch.cat(input_ids, dim=0)
     attention_masks = torch.cat(attention_masks, dim=0)
-    labels = torch.tensor(samples_label)
-    # print(samples_label[5000])
-    # print(samples_label[10000])
-    # print(samples_label[8000])
-    for val in samples_label:
-        if val != 0 and val != 1 and val != 2:
-            print(val)
-    dataset = TensorDataset(input_ids, attention_masks, labels)
+    samples_label_tensor = torch.tensor(samples_label)
+    # samples_text_tensor = torch.tensor(samples_text)
+    
+    dataset = TensorDataset(input_ids, attention_masks, samples_label_tensor)
+    # dataset = TensorDataset(samples_text_tensor, samples_label_tensor)
 
     train_size = int(0.9 * len(dataset))
     val_size = len(dataset) - train_size
@@ -136,19 +158,21 @@ def train_model(args: dict, hparams:dict):
     train_dataloader = DataLoader(
                 train_dataset,  # The training samples.
                 sampler = RandomSampler(train_dataset), # Select batches randomly
-                batch_size = batch_size # Trains with this batch size.
+                batch_size = batch_size, # Trains with this batch size.
+                # collate_fn = collate_fn
             )
 
     validation_dataloader = DataLoader(
                 val_dataset, # The validation samples.
                 sampler = SequentialSampler(val_dataset), # Pull out batches sequentially.
-                batch_size = batch_size # Evaluate with this batch size.
+                batch_size = batch_size, # Evaluate with this batch size.
+                # collate_fn = collate_fn
             )
 
 
     model = BertForSequenceClassification.from_pretrained(        
         "bert-base-uncased", # Use the 12-layer BERT model, with an uncased vocab.
-        num_labels = 3, # The number of output labels--2 for binary classification.
+        num_labels = 2, # The number of output labels--2 for binary classification.
                         # You can increase this for multi-class tasks.   
         output_attentions = False, # Whether the model returns attentions weights.
         output_hidden_states = False, # Whether the model returns all hidden-states.        
@@ -189,6 +213,7 @@ def train_model(args: dict, hparams:dict):
         model.train()
 
         for step, batch in enumerate(train_dataloader):
+            print(len(train_dataloader))
         
             if step % 40 == 0 and not step == 0:               
                 logger.info('  Batch {:>5,}  of  {:>5,}. '.format(step, len(train_dataloader)))

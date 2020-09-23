@@ -3,11 +3,13 @@ import json
 import pickle
 import spacy
 import csv
-
+import os
 
 nlp = spacy.load("en_core_web_md")
 
 def read_samples(file):
+    data_dir = os.path.dirname(file)
+
     headlines = {
         'left': [],
         'center': [],
@@ -64,38 +66,10 @@ def read_samples(file):
             for val in descriptions[label][train_size:]:
                 test_descriptions.append([val, label_map[label]])
 
-        pickle.dump(train_headlines, open('article_headlines_train.pickle', 'wb'))
-        pickle.dump(test_headlines, open('article_headlines_test.pickle', 'wb'))
-        pickle.dump(train_descriptions, open('article_descriptions_train.pickle', 'wb'))
-        pickle.dump(test_descriptions, open('article_descriptions_test.pickle', 'wb'))
-
-        # with open('headlines_train.csv','w') as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow(['headline', 'label'])
-        #     writer.writerows(train_headlines)
-        
-        # with open('headlines_test.csv','w') as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow(['headline', 'label'])
-        #     writer.writerows(test_headlines)
-
-        # with open('descriptions_train.csv','w') as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow(['description', 'label'])
-        #     writer.writerows(train_descriptions)
-        
-        # with open('descriptions_test.csv','w') as f:
-        #     writer = csv.writer(f)
-        #     writer.writerow(['description', 'label'])
-        #     writer.writerows(test_descriptions)
-                
-        # print(len(headlines))
-        # print(len(descriptions))
-        # print(counts)
-        # train_size = 0.
-        # train_headlines = 
-        # pickle.dump(headlines, open('article_headlines.pickle', 'wb'))
-        # pickle.dump(descriptions, open('article_descriptions.pickle', 'wb'))
+        pickle.dump(train_headlines, open(os.path.join(data_dir, 'article_headlines_train.pickle'), 'wb'))
+        pickle.dump(test_headlines, open(os.path.join(data_dir, 'article_headlines_test.pickle'), 'wb'))
+        pickle.dump(train_descriptions, open(os.path.join(data_dir, 'article_descriptions_train.pickle'), 'wb'))
+        pickle.dump(test_descriptions, open(os.path.join(data_dir, 'article_descriptions_test.pickle'), 'wb'))
 
 if __name__=='__main__':
     DATASET_FILE_PATH = '/data/madhu/allsides_scraped_data/full_data.jl.gz'
