@@ -87,7 +87,7 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
     This function combines all of the required steps to prepare batches.
     '''
 
-    print('Creating Smart Batches from {:,} examples with batch size {:,}...\n'.format(len(text_samples), batch_size))
+    # print('Creating Smart Batches from {:,} examples with batch size {:,}...\n'.format(len(text_samples), batch_size))
     logger.info('Creating Smart Batches from {:,} examples with batch size {:,}...\n'.format(len(text_samples), batch_size))
 
     # =========================
@@ -97,7 +97,8 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
     full_input_ids = []
 
     # Tokenize all training examples
-    print('Tokenizing {:,} samples...'.format(len(labels)))
+    # print('Tokenizing {:,} samples...'.format(len(labels)))
+    logger.info('Tokenizing {:,} samples...'.format(len(labels)))
 
     # Choose an interval on which to print progress updates.
     update_interval = good_update_interval(total_iters=len(labels), num_desired_updates=10)
@@ -107,7 +108,8 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
         
         # Report progress.
         if ((len(full_input_ids) % update_interval) == 0):
-            print('  Tokenized {:,} samples.'.format(len(full_input_ids)))
+            # print('  Tokenized {:,} samples.'.format(len(full_input_ids)))
+            logger.info('  Tokenized {:,} samples.'.format(len(full_input_ids)))
 
         # Tokenize the sample.
         input_ids = tokenizer(text=text,              # Text to encode.
@@ -119,8 +121,12 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
         # Add the tokenized result to our list.
         full_input_ids.append(input_ids)
         
-    print('DONE.')
-    print('{:>10,} samples\n'.format(len(full_input_ids)))
+    # print('DONE.')    
+    # print('{:>10,} samples\n'.format(len(full_input_ids)))
+
+    logger.info('DONE.')    
+    logger.info('{:>10,} samples\n'.format(len(full_input_ids)))
+
 
     # =========================
     #      Select Batches
@@ -129,7 +135,8 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
     # Sort the two lists together by the length of the input sequence.
     samples = sorted(zip(full_input_ids, labels), key=lambda x: len(x[0]))
 
-    print('{:>10,} samples after sorting\n'.format(len(samples)))
+    # print('{:>10,} samples after sorting\n'.format(len(samples)))
+    logger.info('{:>10,} samples after sorting\n'.format(len(samples)))
 
     import random
 
@@ -137,7 +144,8 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
     batch_ordered_sentences = []
     batch_ordered_labels = []
 
-    print('Creating batches of size {:}...'.format(batch_size))
+    # print('Creating batches of size {:}...'.format(batch_size))
+    logger.info('Creating batches of size {:}...'.format(batch_size))
 
     # Choose an interval on which to print progress updates.
     update_interval = good_update_interval(total_iters=len(samples), num_desired_updates=10)
@@ -148,7 +156,8 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
         # Report progress.
         if ((len(batch_ordered_sentences) % update_interval) == 0 \
             and not len(batch_ordered_sentences) == 0):
-            print('  Selected {:,} batches.'.format(len(batch_ordered_sentences)))
+            # print('  Selected {:,} batches.'.format(len(batch_ordered_sentences)))
+            logger.info('  Selected {:,} batches.'.format(len(batch_ordered_sentences)))
 
         # `to_take` is our actual batch size. It will be `batch_size` until 
         # we get to the last batch, which may be smaller. 
@@ -172,13 +181,14 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
         # Remove these samples from the list.
         del samples[select:select + to_take]
 
-    print('\n  DONE - Selected {:,} batches.\n'.format(len(batch_ordered_sentences)))
+    # print('\n  DONE - Selected {:,} batches.\n'.format(len(batch_ordered_sentences)))
+    logger.info('\n  DONE - Selected {:,} batches.\n'.format(len(batch_ordered_sentences)))
 
     # =========================
     #        Add Padding
     # =========================    
 
-    print('Padding out sequences within each batch...')
+    logger.info('Padding out sequences within each batch...')
 
     py_inputs = []
     py_attn_masks = []
@@ -220,19 +230,16 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
         py_attn_masks.append(torch.tensor(batch_attn_masks))
         py_labels.append(torch.tensor(batch_labels))
     
-    print('  DONE.')
+    logger.info('  DONE.')
 
     # Return the smart-batched dataset!
     return (py_inputs, py_attn_masks, py_labels)
 
 def train_model(args: dict, hparams:dict):
-    # Code for this function adopted from https://mccormickml.com/2019/07/22/BERT-fine-tuning/
     
     file = args.dataset_filepath
-    # pos_file = args.pos_file
-    # neg_file = args.neg_file
-    truncation = args.truncation
-    # n_samples = args.n_samples
+    # truncation = args.truncation
+
     seed_val = hparams["seed_val"]
     device = utils.get_device(device_no=args.device_no)
     saves_dir = "saves/"
@@ -247,24 +254,25 @@ def train_model(args: dict, hparams:dict):
 
     logging.basicConfig(filename=log_path, filemode='w', format='%(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
     logger=logging.getLogger()
-    # logger.setLevel()
 
     logger.info("File: "+str(file))
     logger.info("Parameters: "+str(args))
-    logger.info("Truncation: "+truncation)
+    logger.info("Hyperparameters: "+str(hparams))
+    # logger.info("Truncation: "+truncation)
 
     # Load the BERT tokenizer.
     logger.info('Loading BERT tokenizer...')
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
     max_len = 0
 
-    
-    samples = utils.read_samples(file
-    # , seed_val=seed_val
-    )
+    if args.binary_classifier:        
+        samples = utils.read_pairwise(file, args.data_1, args.data_2, dataset_amount=args.dataset_amount)
+    else:
+        samples = utils.read_and_sample(file, dataset_amount=args.dataset_amount)
 
-    # sorted_samples = sorted(samples, key=lambda x: len(x[0]))
-    # samples = sorted_samples
+    no_of_labels = len(np.unique(np.array([val[1] for val in samples])))
+
+    logger.info("No of unique labels: "+str(no_of_labels))
 
     train_size = int(0.9 * len(samples))
     val_size = len(samples) - train_size
@@ -273,12 +281,9 @@ def train_model(args: dict, hparams:dict):
 
     train_samples = samples[:train_size]
     val_samples = samples[train_size:]
-    # input_ids = []
-    # attention_masks = []
     
     train_samples_text = [val[0] for val in train_samples]
     train_samples_label = [val[1] for val in train_samples]
-
     val_samples_text = [val[0] for val in val_samples]
     val_samples_label = [val[1] for val in val_samples]
 
@@ -295,41 +300,17 @@ def train_model(args: dict, hparams:dict):
 
     logger.info('Max text length: ' + str(max_len))
     
-    batch_size = hparams["batch_size"]
+    batch_size = args.batch_size
 
     (train_input_ids, train_attention_masks, train_samples_label_tensor) = make_smart_batches(train_samples_text, train_samples_label, batch_size, logger, tokenizer, max_len)
     (val_input_ids, val_attention_masks, val_samples_label_tensor) = make_smart_batches(val_samples_text, val_samples_label, batch_size, logger, tokenizer, max_len)
 
-    # dataset = TensorDataset(input_ids, attention_masks, samples_label_tensor)
-    # # dataset = TensorDataset(samples_text_tensor, samples_label_tensor)
-
-    # train_size = int(0.9 * len(dataset))
-    # val_size = len(dataset) - train_size
-
-    # train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-
     logger.info('{:>5,} training samples'.format(train_size))
     logger.info('{:>5,} validation samples'.format(val_size))
 
-
-    # train_dataloader = DataLoader(
-    #             train_dataset,  # The training samples.
-    #             sampler = RandomSampler(train_dataset), # Select batches randomly
-    #             batch_size = batch_size, # Trains with this batch size.
-    #             # collate_fn = collate_fn
-    #         )
-
-    # validation_dataloader = DataLoader(
-    #             val_dataset, # The validation samples.
-    #             sampler = SequentialSampler(val_dataset), # Pull out batches sequentially.
-    #             batch_size = batch_size, # Evaluate with this batch size.
-    #             # collate_fn = collate_fn
-    #         )
-
-
     model = BertForSequenceClassification.from_pretrained(        
         "bert-base-uncased", # Use the 12-layer BERT model, with an uncased vocab.
-        num_labels = 3, # The number of output labels--2 for binary classification.
+        num_labels = no_of_labels, # The number of output labels--2 for binary classification.
                         # You can increase this for multi-class tasks.   
         output_attentions = False, # Whether the model returns attentions weights.
         output_hidden_states = False, # Whether the model returns all hidden-states.        
@@ -340,7 +321,7 @@ def train_model(args: dict, hparams:dict):
     # model.cuda(device=device)
 
     optimizer = AdamW(model.parameters(),
-                    lr = hparams["learning_rate"], # args.learning_rate - default is 5e-5, our notebook had 2e-5
+                    lr = args.learning_rate, # args.learning_rate - default is 5e-5, our notebook had 2e-5
                     eps = hparams["adam_epsilon"] # args.adam_epsilon  - default is 1e-8.
                     )
     epochs = 4
@@ -363,7 +344,6 @@ def train_model(args: dict, hparams:dict):
         logger.info("")
         logger.info('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
         logger.info('Training...')
-
         
         total_train_loss = 0
 
@@ -386,9 +366,6 @@ def train_model(args: dict, hparams:dict):
                                 attention_mask=b_input_mask, 
                                 labels=b_labels)
 
-            # print(logits)
-            # print(loss)
-            
             total_train_loss += loss.detach().cpu().numpy()
 
             loss.backward()
@@ -398,6 +375,8 @@ def train_model(args: dict, hparams:dict):
             optimizer.step()
 
             scheduler.step()
+
+            step+=1
         
         avg_train_loss = total_train_loss / len(train_input_ids)            
 
@@ -478,23 +457,62 @@ if __name__=="__main__":
     parser.add_argument("--truncation",
                     default=None,
                     type=str,
-                    required=True,
+                    required=False,
                     help="Possible values: head-only, tail-only, and head-and-tail")
+    parser.add_argument("--dataset_amount",
+                    default="full",
+                    type=str,
+                    required=False,
+                    help="Accepted values - 'same size' or 'full'")
+    parser.add_argument("--binary_classifier",
+                    # type=bool,
+                    dest='binary_classifier',
+                    action='store_true',
+                    help="")
+    parser.add_argument("--no_binary_classifier",
+                    # type=bool,
+                    dest='binary_classifier',
+                    action='store_false',
+                    help="")
+    parser.add_argument("--data_1",
+                    default=0,
+                    type=int,
+                    required=False,
+                    help="left-0, center-1, right-2")
+    parser.add_argument("--data_2",
+                    default=2,
+                    type=int,
+                    required=False,
+                    help="left-0, center-1, right-2")
+    parser.add_argument("--learning_rate",
+                    default=2e-5,
+                    type=float,
+                    required=False,
+                    help="")
+    parser.add_argument("--batch_size",
+                    default=None,
+                    type=int,
+                    required=True,
+                    help="")
+    
+    parser.set_defaults(binary_classifier=True)
+
+
 
     args = parser.parse_args()
 
     hyperparams = [       
         {
-            "learning_rate": 2e-5,
-            "batch_size": 64,
+            # "learning_rate": 2e-5,
+            # "batch_size": 8,
             "seed_val": 23,
             "adam_epsilon": 1e-8
         },  
     ]
 
     for hparams in hyperparams:         
-        myprint(f"args: {args}")    
-        myprint(f"hparams: {hparams}")
+        # myprint(f"args: {args}")    
+        # myprint(f"hparams: {hparams}")
         train_model(args, hparams)
         
 
