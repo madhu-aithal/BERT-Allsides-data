@@ -4,74 +4,116 @@ import pickle
 import spacy
 import csv
 import os
+import random
+from pathlib import Path
+import argparse
 
-nlp = spacy.load("en_core_web_md")
+# nlp = spacy.load("en_core_web_md")
 
-def read_samples(file):
-    data_dir = os.path.dirname(file)
-
-    headlines = {
-        'left': [],
-        'center': [],
-        'right': []
-    }
-    descriptions = {
-        'left': [],
-        'center': [],
-        'right': []
-    }
-    label_map = {
-        'left': 0,
-        'center': 1,
-        'right': 2
-    }
-    counts = {
-        'left': 0,
-        'center': 0,
-        'right': 0
-    }
-    split_ratio = 0.9
-    with json_lines.open(file) as f:
-        for item in f:            
-            headline = " ".join([val.lower() for val in item["article_headline"].split()])
-            desc = " ".join([val.lower() for val in item["article_description"].split()])
-            # try:
-            if item["political_spectrum"].lower() != "":
-                # headlines.append((headline, label_map[item["political_spectrum"].lower()]))
-                # descriptions.append((desc, label_map[item["political_spectrum"].lower()]))
-                headlines[item["political_spectrum"].lower()].append(headline)
-                descriptions[item["political_spectrum"].lower()].append(desc)
-                # counts[item["political_spectrum"].lower()] += 1
-            # except:
-                # print("Val: ", item["political_spectrum"].lower())
-        
-        train_headlines = []
-        test_headlines = []
-        
-        train_descriptions = []
-        test_descriptions = []
-        for label in ["left", "center", "right"]:
-            train_size = int(len(headlines[label])*split_ratio)
-            for val in headlines[label][:train_size]:
-                train_headlines.append([val, label_map[label]])
-
-            for val in headlines[label][train_size:]:
-                test_headlines.append([val, label_map[label]])
+# def remove_newline(data):
+#     new_data = []
+#     for article in data:
+#         for val in article:
+#             10
 
 
-            train_size = int(len(descriptions[label])*split_ratio)
-            for val in descriptions[label][:train_size]:
-                train_descriptions.append([val, label_map[label]])
+def read_samples_util_LR(key, articles, left_labeled_data_LR, right_labeled_data_LR):
+    left = [val for val in articles if val['political_spectrum'] == 'Left']
+    right = [val for val in articles if val['political_spectrum'] == 'Right']
+
+    for val1 in left:
+        for val2 in right:
+            data = [val1[key], val2[key]]
+            random.shuffle(data)
+            
+            data_left = data + [data.index(val1[key])]
+            data_right = data + [data.index(val2[key])]
+
+            left_labeled_data_LR.append(data_left)
+            right_labeled_data_LR.append(data_right)
+
+    return left_labeled_data_LR, right_labeled_data_LR
+
+def read_samples_util_LCR(key, articles, left_labeled_data_LCR, right_labeled_data_LCR):
+    left = [val for val in articles if val['political_spectrum'] == 'Left']
+    center = [val for val in articles if val['political_spectrum'] == 'Center']
+    right = [val for val in articles if val['political_spectrum'] == 'Right']
+
+    for val1 in left:
+        for val2 in right:
+            for val3 in center:
+                data = [val1[key], val2[key], val3[key]]
+                random.shuffle(data)
                 
-            for val in descriptions[label][train_size:]:
-                test_descriptions.append([val, label_map[label]])
+                data_left = data + [data.index(val1[key])]                
+                data_right = data + [data.index(val2[key])]
 
-        pickle.dump(train_headlines, open(os.path.join(data_dir, 'article_headlines_train.pickle'), 'wb'))
-        pickle.dump(test_headlines, open(os.path.join(data_dir, 'article_headlines_test.pickle'), 'wb'))
-        pickle.dump(train_descriptions, open(os.path.join(data_dir, 'article_descriptions_train.pickle'), 'wb'))
-        pickle.dump(test_descriptions, open(os.path.join(data_dir, 'article_descriptions_test.pickle'), 'wb'))
+                left_labeled_data_LCR.append(data_left)
+                right_labeled_data_LCR.append(data_right)
+
+    return left_labeled_data_LCR, right_labeled_data_LCR
+
+
+
+# Function for creating data in Left headline, Center description, Right headline
+def read_samples_util_Left_Center_Desc_Right(key, articles, left_labeled_data_LCR, right_labeled_data_LCR):
+    left = [val for val in articles if val['political_spectrum'] == 'Left']
+    center = [val for val in articles if val['political_spectrum'] == 'Center']
+    right = [val for val in articles if val['political_spectrum'] == 'Right']
+
+    for val1 in left:
+        for val2 in right:
+            for val3 in center:
+                data = [val1[key], val2[key], val3['article_description']]
+                random.shuffle(data)
+                # data = data + []
+                data_left = data + [data.index(val1[key])]                
+                data_right = data + [data.index(val2[key])]
+
+                left_labeled_data_LCR.append(data_left)
+                right_labeled_data_LCR.append(data_right)
+
+    return left_labeled_data_LCR, right_labeled_data_LCR
+
+def read_samples(in_file, out_dir, args):    
+    left_labeled_data_LR = []
+    right_labeled_data_LR = []
+
+    # LCR version stores [Left Headline, Center description, Right headline]
+    left_labeled_data_LCR = []
+    right_labeled_data_LCR = []
+    with json_lines.open(in_file) as f:
+        for item in f:                                    
+            left_labeled_data_LR, right_labeled_data_LR = read_samples_util_LR(args.data_type, item['articles'], left_labeled_data_LR, right_labeled_data_LR)            
+            
+            # left_labeled_data_LCR, right_labeled_data_LCR = read_samples_util_LCR(args.data_type, item['articles'], left_labeled_data_LCR, right_labeled_data_LCR)            
+            
+            # left_labeled_data_LCR, right_labeled_data_LCR = read_samples_util_Left_Center_Desc_Right("article_headline", item['articles'], left_labeled_data_LCR, right_labeled_data_LCR)            
+
+        Path(out_dir).mkdir(parents=True, exist_ok=True)           
+        
+        pickle.dump(left_labeled_data_LR, open(os.path.join(out_dir, "left_labeled_"+args.data_type+"_LR.pickle"), 'wb'))
+        pickle.dump(right_labeled_data_LR, open(os.path.join(out_dir, "right_labeled_"+args.data_type+"_LR.pickle"), 'wb'))
+
+        # pickle.dump(left_labeled_data_LCR, open(os.path.join(out_dir, "left_labeled_"+args.data_type+"_LCR.pickle"), 'wb'))
+        # pickle.dump(right_labeled_data_LCR, open(os.path.join(out_dir, "right_labeled_"+args.data_type+"_LCR.pickle"), 'wb'))
+
+        # pickle.dump(left_labeled_data_LCR, open(os.path.join(out_dir, "left_labeled_"+args.data_type+"_LCR_label_count_3.pickle"), 'wb'))
+        # pickle.dump(right_labeled_data_LCR, open(os.path.join(out_dir, "right_labeled_"+args.data_type+"_LCR_label_count_3.pickle"), 'wb'))
+
 
 if __name__=='__main__':
-    DATASET_FILE_PATH = '/data/madhu/allsides_scraped_data/full_data.jl.gz'
+    TRAIN_DATASET_FILE_PATH = '/data/madhu/allsides_scraped_data/new_data_oct_7/full_data_train.jl.gz'
+    SAVES_DIR = '/data/madhu/allsides_scraped_data/new_data_oct_7/processed_data'
 
-    read_samples(DATASET_FILE_PATH)
+    parser = argparse.ArgumentParser()
+
+    ## Required parameters
+    parser.add_argument("--data_type",
+                        default="article_headline", # Change this to None in future and make required = True
+                        type=str,
+                        required=False,
+                        help="")    
+
+    args = parser.parse_args()
+    read_samples(TRAIN_DATASET_FILE_PATH, SAVES_DIR, args)
