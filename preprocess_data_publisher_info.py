@@ -35,10 +35,10 @@ def read_samples(file):
         'right': 0
     }
     split_ratio = 0.9
-    with json_lines.open(file) as f:
-        for item in f:        
-                            
+    publisher_info_flag = False
 
+    with json_lines.open(file) as f:
+        for item in f:                                    
             headline = " ".join([val.lower() for val in item["article_headline"].split()])
             desc = " ".join([val.lower() for val in item["article_description"].split()])
             # print(item['publisher'])
@@ -54,8 +54,12 @@ def read_samples(file):
 
 
             if item["political_spectrum"].lower() != "" and item['publisher'] != None:
-                headlines.append([news_publisher+". "+headline, label_map[item["political_spectrum"].lower()]])
-                descriptions.append([news_publisher+". "+desc, label_map[item["political_spectrum"].lower()]])
+                if publisher_info_flag:
+                    headlines.append([news_publisher+". "+headline, label_map[item["political_spectrum"].lower()]])
+                    descriptions.append([news_publisher+". "+desc, label_map[item["political_spectrum"].lower()]])
+                else:
+                    headlines.append([headline, label_map[item["political_spectrum"].lower()]])
+                    descriptions.append([desc, label_map[item["political_spectrum"].lower()]])
                 # headlines[item["political_spectrum"].lower()].append(news_publisher+". "+headline)
                 # descriptions[item["political_spectrum"].lower()].append(news_publisher+". "+desc)
                 # counts[item["political_spectrum"].lower()] += 1
@@ -83,13 +87,18 @@ def read_samples(file):
         #     for val in descriptions[label][train_size:]:
         #         test_descriptions.append([val, label_map[label]])
 
-        pickle.dump(headlines, open(os.path.join(data_dir, 'article_headlines_train_with_publisher.pickle'), 'wb'))
-        # pickle.dump(test_headlines, open(os.path.join(data_dir, 'article_headlines_test_with_publisher.pickle'), 'wb'))
-        pickle.dump(descriptions, open(os.path.join(data_dir, 'article_descriptions_train_with_publisher.pickle'), 'wb'))
-        # pickle.dump(test_descriptions, open(os.path.join(data_dir, 'article_descriptions_test_with_publisher.pickle'), 'wb'))
+        if publisher_info_flag:
+            pickle.dump(headlines, open(os.path.join(data_dir, 'article_headlines_train_with_publisher.pickle'), 'wb'))
+            # pickle.dump(test_headlines, open(os.path.join(data_dir, 'article_headlines_test_with_publisher.pickle'), 'wb'))
+            pickle.dump(descriptions, open(os.path.join(data_dir, 'article_descriptions_train_with_publisher.pickle'), 'wb'))
+            # pickle.dump(test_descriptions, open(os.path.join(data_dir, 'article_descriptions_test_with_publisher.pickle'), 'wb'))
+        else:
+            pickle.dump(headlines, open(os.path.join(data_dir, 'article_headlines_train.pickle'), 'wb'))
+            pickle.dump(descriptions, open(os.path.join(data_dir, 'article_descriptions_train.pickle'), 'wb'))
 
         for key,val in publisher_spectrum_map.items():
             # print(key, np.unique(np.array(val)))
+            print(key, val)
             if len(np.unique(np.array(val))) > 1:
                 print(key, np.unique(np.array(val)))
 
