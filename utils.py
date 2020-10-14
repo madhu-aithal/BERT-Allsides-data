@@ -8,14 +8,14 @@ def read_samples(file):
 
 def read_and_sample(file, dataset_amount="full", n_samples = None):
     data = read_samples(file)
-    left = list(filter(lambda x:x[1]==0, data))
-    center = list(filter(lambda x:x[1]==1, data))
-    right = list(filter(lambda x:x[1]==2, data))
-    if dataset_amount != "full":
-        size = min(len(left), len(center), len(right))
-        return left[:size]+right[:size]+center[:size]
-    else:
-        return left+right+center
+    # left = list(filter(lambda x:x[1]==0, data))
+    # center = list(filter(lambda x:x[1]==1, data))
+    # right = list(filter(lambda x:x[1]==2, data))
+    # if dataset_amount != "full":
+    #     size = min(len(left), len(center), len(right))
+    #     return left[:size]+right[:size]+center[:size]
+    # else:
+    #     return left+right+center
     
     # if n_samples == None:
     #     size = min(len(left), len(center), len(right))

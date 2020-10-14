@@ -56,7 +56,7 @@ def read_samples_util_LCR(key, articles, left_labeled_data_LCR, right_labeled_da
 
 
 # Function for creating data in Left headline, Center description, Right headline
-def read_samples_util_Left_Center_Desc_Right(key, articles, left_labeled_data_LCR, right_labeled_data_LCR):
+def read_samples_util_Left_Center_Desc_Right(key, articles, left_labeled_data_LCR, right_labeled_data_LCR, article_type):
     left = [val for val in articles if val['political_spectrum'] == 'Left']
     center = [val for val in articles if val['political_spectrum'] == 'Center']
     right = [val for val in articles if val['political_spectrum'] == 'Right']
@@ -67,8 +67,8 @@ def read_samples_util_Left_Center_Desc_Right(key, articles, left_labeled_data_LC
                 data = [val1[key], val2[key], val3['article_description']]
                 random.shuffle(data)
                 # data = data + []
-                data_left = data + [data.index(val1[key])]                
-                data_right = data + [data.index(val2[key])]
+                data_left = data + [data.index(val1[key]), article_type]                
+                data_right = data + [data.index(val2[key]), article_type]
 
                 left_labeled_data_LCR.append(data_left)
                 right_labeled_data_LCR.append(data_right)

@@ -252,11 +252,22 @@ def train_model(args: dict, hparams:dict):
 
     samples = utils.read_samples(file)
 
-    if args.lcr:
-        samples = [[val[0].lower()+" [SEP] "+val[1].lower()+" [SEP] "+val[2].lower(), val[3]] for val in samples]
-    else:
-        samples = [[val[0].lower()+" [SEP] "+val[1].lower(), val[2]] for val in samples]
+    article_type_map = {}
 
+    if args.lcr:
+        samples = [[val[0].lower()+" [SEP] "+val[1].lower()+" [SEP] "+val[2].lower(), val[3], val[4]] for val in samples]        
+    else:
+        samples = [[val[0].lower()+" [SEP] "+val[1].lower(), val[2], val[3]] for val in samples]
+
+    samples_new = []
+    for s in samples:
+        # article_type_map[s[0]] = s[2]
+        if s[2] == "domestic":
+            samples_new.append([s[0], s[1], 0])
+        else:
+            samples_new.append([s[0], s[1], 1])
+
+    samples = samples_new
     # samples = samples[:100]
     # if args.binary_classifier:        
     #     samples = utils.read_pairwise(file, args.data_1, args.data_2, dataset_amount=args.dataset_amount)
@@ -267,25 +278,29 @@ def train_model(args: dict, hparams:dict):
 
     logger.info("No of unique labels: "+str(no_of_labels))
 
-    train_size = int(0.9 * len(samples))
-    val_size = len(samples) - train_size
+    # train_size = int(0.9 * len(samples))
+    # val_size = len(samples) - train_size
 
-    random.shuffle(samples)
+    # random.shuffle(samples)
 
-    train_samples = samples[:train_size]
-    val_samples = samples[train_size:]
+    # train_samples = samples[:train_size]
+    # val_samples = samples[train_size:]
     
-    train_samples_text = [val[0] for val in train_samples]
-    train_samples_label = [val[1] for val in train_samples]
-    val_samples_text = [val[0] for val in val_samples]
-    val_samples_label = [val[1] for val in val_samples]
+    # train_samples_text = [val[0] for val in train_samples]
+    # train_samples_label = [val[1] for val in train_samples]
+    # val_samples_text = [val[0] for val in val_samples]
+    # val_samples_label = [val[1] for val in val_samples]
+    samples_text = [val[0] for val in samples]
+    samples_label = [val[1] for val in samples]
+    samples_article_type = [val[2] for val in samples]
 
     max_len = 0
 
+    input_ids = []
+    attention_masks = []    
+
     # For every sentence...
-    for text in train_samples_text+val_samples_text:
-        
-        # Tokenize the text and add `[CLS]` and `[SEP]` tokens.
+    for text in samples_text:                
         input_id = tokenizer(text, add_special_tokens=True)
 
         # Update the maximum sentence length.
@@ -295,14 +310,62 @@ def train_model(args: dict, hparams:dict):
 
     max_len = pow(2, math.ceil(math.log2(max_len)))
     max_len = min(512, max_len)
+
+    for text in samples_text:
+        input_id = tokenizer(text, add_special_tokens=True)
+        if len(input_id) > 512:            
+            if args.truncation == "tail-only":
+                input_id['input_ids'] = [tokenizer.cls_token_id]+input_id['input_ids'][-511:]      
+            elif args.truncation == "head-and-tail":
+                input_id['input_ids'] = [tokenizer.cls_token_id]+input_id['input_ids'][1:129]+input_id['input_ids'][-382:]+[tokenizer.sep_token_id]
+            else:
+                input_id['input_ids'] = input_id['input_ids'][:511]+[tokenizer.sep_token_id]
+                
+            input_ids.append(torch.tensor(input_id['input_ids']).view(1,-1))
+            attention_masks.append(torch.ones([1,len(input_id['input_ids'])], dtype=torch.long))
+        else:
+            encoded_dict = tokenizer(
+                                text,                      # Sentence to encode.
+                                add_special_tokens = True, # Add '[CLS]' and '[SEP]'
+                                max_length = max_len,           # Pad & truncate all sentences.
+                                pad_to_max_length = True,
+                                return_attention_mask = True,   # Construct attn. masks.
+                                return_tensors = 'pt',     # Return pytorch tensors.
+                        )            
+            input_ids.append(encoded_dict['input_ids'])                        
+            attention_masks.append(encoded_dict['attention_mask'])
     
     batch_size = args.batch_size
+    input_ids = torch.cat(input_ids, dim=0)
+    attention_masks = torch.cat(attention_masks, dim=0)
+    labels = torch.tensor(samples_label)
+    samples_article_type_tensor = torch.tensor(samples_article_type)
 
-    (train_input_ids, train_attention_masks, train_samples_label_tensor) = make_smart_batches(train_samples_text, train_samples_label, batch_size, logger, tokenizer, max_len)
-    (val_input_ids, val_attention_masks, val_samples_label_tensor) = make_smart_batches(val_samples_text, val_samples_label, batch_size, logger, tokenizer, max_len)
+    # Combine the training inputs into a TensorDataset.
+    dataset = TensorDataset(input_ids, attention_masks, labels, samples_article_type_tensor)
+
+    # (train_input_ids, train_attention_masks, train_samples_label_tensor) = make_smart_batches(train_samples_text, train_samples_label, batch_size, logger, tokenizer, max_len)
+    # (val_input_ids, val_attention_masks, val_samples_label_tensor) = make_smart_batches(val_samples_text, val_samples_label, batch_size, logger, tokenizer, max_len)
+
+    train_size = int(0.9 * len(dataset))
+    val_size = len(dataset) - train_size
+
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
     logger.info('{:>5,} training samples'.format(train_size))
     logger.info('{:>5,} validation samples'.format(val_size))
+
+    train_dataloader = DataLoader(
+                train_dataset,  # The training samples.
+                sampler = RandomSampler(train_dataset), # Select batches randomly
+                batch_size = batch_size # Trains with this batch size.
+            )
+
+    validation_dataloader = DataLoader(
+                val_dataset, # The validation samples.
+                sampler = SequentialSampler(val_dataset), # Pull out batches sequentially.
+                batch_size = batch_size # Evaluate with this batch size.
+            )
 
     model = BertForSequenceClassification.from_pretrained(        
         "bert-base-uncased", # Use the 12-layer BERT model, with an uncased vocab.
@@ -322,7 +385,7 @@ def train_model(args: dict, hparams:dict):
                     )
     epochs = args.n_epochs
 
-    total_steps = len(train_input_ids) * epochs
+    total_steps = len(train_dataloader) * epochs
 
     scheduler = get_linear_schedule_with_warmup(optimizer, 
                                                 num_warmup_steps = 0, # Default value in run_glue.py
@@ -335,7 +398,23 @@ def train_model(args: dict, hparams:dict):
 
     training_stats = []
 
+    correct_counts = {
+        "domestic": 0,
+        "international": 0
+    }
+    total_counts = {
+        "domestic": 0,
+        "international": 0
+    }
     for epoch_i in range(0, epochs):
+        correct_counts = {
+            "domestic": 0,
+            "international": 0
+        }
+        total_counts = {
+            "domestic": 0,
+            "international": 0
+        }
         
         logger.info("")
         logger.info('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
@@ -346,15 +425,13 @@ def train_model(args: dict, hparams:dict):
         model.train()
 
         step = 0
-        for batch in zip(train_input_ids, train_attention_masks, train_samples_label_tensor):
+        for step, batch in enumerate(train_dataloader):
         
             if step % 40 == 0 and not step == 0:               
-                logger.info('  Batch {:>5,}  of  {:>5,}. '.format(step, len(train_input_ids)))
+                logger.info('  Batch {:>5,}  of  {:>5,}. '.format(step, len(train_dataloader)))
 
             b_input_ids = batch[0].to(device=device)
             b_input_mask = batch[1].to(device=device)
-
-
             b_labels = batch[2].to(device=device) 
             
             # Converting labels to float32 because I was getting some runtime error. 
@@ -381,7 +458,7 @@ def train_model(args: dict, hparams:dict):
 
             step+=1
         
-        avg_train_loss = total_train_loss / len(train_input_ids)            
+        avg_train_loss = total_train_loss / len(train_dataloader)            
 
         logger.info("")
         logger.info("Average training loss: {0:.2f}".format(avg_train_loss))
@@ -395,10 +472,11 @@ def train_model(args: dict, hparams:dict):
         total_eval_accuracy = 0
         total_eval_loss = 0
 
-        for batch in zip(val_input_ids, val_attention_masks, val_samples_label_tensor):
+        for batch in validation_dataloader:
             b_input_ids = batch[0].to(device)
             b_input_mask = batch[1].to(device)
             b_labels = batch[2].to(device)
+            b_article_types = batch[3].to(device)
             
             with torch.no_grad():        
 
@@ -413,12 +491,27 @@ def train_model(args: dict, hparams:dict):
             label_ids = b_labels.to('cpu').numpy()
 
             total_eval_accuracy += flat_accuracy(logits, label_ids)
-            
+                        
+            for idx in range(len(b_labels)):
+                pred = np.argmax(logits[idx]) == label_ids[idx]
+                # input_text = tokenizer.convert_ids_to_tokens(b_input_ids[idx])
+                # input_text_str = " ".join(input_text)
+                # print(input_text_str)
+                # print(pred)
+                if b_article_types[idx] == 0:
+                    if pred == True:
+                        correct_counts["domestic"] += 1
+                    total_counts["domestic"] += 1
+                    
 
-        avg_val_accuracy = total_eval_accuracy / len(val_input_ids)
+        avg_val_accuracy = total_eval_accuracy / len(validation_dataloader)
         logger.info("Accuracy: {0:.2f}".format(avg_val_accuracy))
 
-        avg_val_loss = total_eval_loss / len(val_input_ids)
+        avg_val_accuracy_domestic = correct_counts["domestic"]/total_counts["domestic"]
+
+        logger.info("Domestic validation accuracy: {0:.2f}".format(avg_val_accuracy_domestic))
+
+        avg_val_loss = total_eval_loss / len(validation_dataloader)
                
         logger.info("Validation Loss: {0:.2f}".format(avg_val_loss))        
 

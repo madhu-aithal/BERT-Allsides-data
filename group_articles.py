@@ -58,14 +58,16 @@ def read_samples(in_file, international_keywords, domestic_keywords):
                         international_flag = False
 
             if not international_flag:
+                item["type"] = "domestic"
                 domestic_articles.append(item)
             else:
+                item["type"] = "international"
                 international_articles.append(item)
         # print(count)
         return domestic_articles, international_articles
 
 
-def read_samples_util_LR(key, articles, left_labeled_data_LR, right_labeled_data_LR):
+def read_samples_util_LR(key, articles, left_labeled_data_LR, right_labeled_data_LR, article_type):
     left = [val for val in articles if val['political_spectrum'] == 'Left']
     right = [val for val in articles if val['political_spectrum'] == 'Right']
 
@@ -74,15 +76,15 @@ def read_samples_util_LR(key, articles, left_labeled_data_LR, right_labeled_data
             data = [val1[key], val2[key]]
             random.shuffle(data)
             
-            data_left = data + [data.index(val1[key])]
-            data_right = data + [data.index(val2[key])]
+            data_left = data + [data.index(val1[key])] + [article_type]
+            data_right = data + [data.index(val2[key])] + [article_type]
 
             left_labeled_data_LR.append(data_left)
             right_labeled_data_LR.append(data_right)
 
     return left_labeled_data_LR, right_labeled_data_LR
 
-def read_samples_util_LCR(key, articles, left_labeled_data_LCR, right_labeled_data_LCR):
+def read_samples_util_LCR(key, articles, left_labeled_data_LCR, right_labeled_data_LCR, article_type):
     left = [val for val in articles if val['political_spectrum'] == 'Left']
     center = [val for val in articles if val['political_spectrum'] == 'Center']
     right = [val for val in articles if val['political_spectrum'] == 'Right']
@@ -93,8 +95,8 @@ def read_samples_util_LCR(key, articles, left_labeled_data_LCR, right_labeled_da
                 data = [val1[key], val2[key], val3[key]]
                 random.shuffle(data)
                 
-                data_left = data + [data.index(val1[key])]                
-                data_right = data + [data.index(val2[key])]
+                data_left = data + [data.index(val1[key])] + [article_type]             
+                data_right = data + [data.index(val2[key])] + [article_type]
 
                 left_labeled_data_LCR.append(data_left)
                 right_labeled_data_LCR.append(data_right)
@@ -108,9 +110,9 @@ def process_selected_samples(domestic_articles, out_dir, args):
     right_labeled_data_LCR = []
     
     for item in domestic_articles:                                    
-        left_labeled_data_LR, right_labeled_data_LR = read_samples_util_LR(args.data_type, item['articles'], left_labeled_data_LR, right_labeled_data_LR)            
+        left_labeled_data_LR, right_labeled_data_LR = read_samples_util_LR(args.data_type, item['articles'], left_labeled_data_LR, right_labeled_data_LR, item["type"])            
         # left_labeled_data_LCR, right_labeled_data_LCR = read_samples_util_LCR(args.data_type, item['articles'], left_labeled_data_LCR, right_labeled_data_LCR)                    
-        left_labeled_data_LCR, right_labeled_data_LCR = read_samples_util_Left_Center_Desc_Right(args.data_type, item['articles'], left_labeled_data_LCR, right_labeled_data_LCR)            
+        left_labeled_data_LCR, right_labeled_data_LCR = read_samples_util_Left_Center_Desc_Right(args.data_type, item['articles'], left_labeled_data_LCR, right_labeled_data_LCR, item["type"])            
 
     Path(out_dir).mkdir(parents=True, exist_ok=True)           
 
@@ -128,6 +130,9 @@ def process_selected_samples(domestic_articles, out_dir, args):
     pickle.dump(left_labeled_data_LCR, open(os.path.join(out_dir, "left_labeled_"+args.data_type+"_LCR_label_count_3.pickle"), 'wb'))
     pickle.dump(right_labeled_data_LCR, open(os.path.join(out_dir, "right_labeled_"+args.data_type+"_LCR_label_count_3.pickle"), 'wb'))
 
+
+
+# Rename functions to make their purpose more clear
 if __name__=="__main__":
     TRAIN_DATASET_FILE_PATH = '/data/madhu/allsides_scraped_data/new_data_oct_7/full_data_train.jl.gz'
 
@@ -149,8 +154,8 @@ if __name__=="__main__":
     print("domestic_articles: ", len(domestic_articles))
     print("international_articles: ", len(international_articles))
     # print(domestic_articles)
-    out_dir = os.path.join(os.path.dirname(TRAIN_DATASET_FILE_PATH), "processed_data_domestic_articles")
-    process_selected_samples(domestic_articles, out_dir, args)
+    out_dir = os.path.join(os.path.dirname(TRAIN_DATASET_FILE_PATH), "processed_data_with_article_type")
+    process_selected_samples(domestic_articles+international_articles, out_dir, args)
 
-    out_dir = os.path.join(os.path.dirname(TRAIN_DATASET_FILE_PATH), "processed_data_international_articles")
-    process_selected_samples(international_articles, out_dir, args)
+    # out_dir = os.path.join(os.path.dirname(TRAIN_DATASET_FILE_PATH), "processed_data_international_articles")
+    # process_selected_samples(international_articles, out_dir, args)

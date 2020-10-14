@@ -19,6 +19,7 @@ import argparse
 import pprint
 import json_lines
 import random
+import math
 
 pp = pprint.PrettyPrinter(indent=4)
 myprint = pp.pprint
@@ -28,23 +29,6 @@ def flat_accuracy(preds, labels):
     pred_flat = np.argmax(preds, axis=1).flatten()
     labels_flat = labels.flatten()
     return np.sum(pred_flat == labels_flat) / len(labels_flat)
-
-# def format_time(elapsed):
-#     '''
-#     Takes a time in seconds and returns a string hh:mm:ss
-#     '''
-#     # Round to the nearest second.
-#     elapsed_rounded = int(round((elapsed)))
-    
-#     # Format as hh:mm:ss
-#     return str(datetime.timedelta(seconds=elapsed_rounded))
-
-# def read_file(dataset_path: str):
-    
-            # print(item['x'])
-
-# def collate_fn(data):
-#     print(data)
 
 
 def good_update_interval(total_iters, num_desired_updates):
@@ -133,7 +117,7 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
     # =========================    
 
     # Sort the two lists together by the length of the input sequence.
-    samples = sorted(zip(full_input_ids, labels), key=lambda x: len(x[0]))
+    samples = sorted(zip(full_input_ids, labels), key=lambda x: len(x[0]['input_ids']))
 
     # print('{:>10,} samples after sorting\n'.format(len(samples)))
     logger.info('{:>10,} samples after sorting\n'.format(len(samples)))
@@ -165,11 +149,12 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
 
         # Pick a random index in the list of remaining samples to start
         # our batch at.
-        select = random.randint(0, len(samples) - to_take)
+        # select = random.randint(0, len(samples) - to_take)        
 
         # Select a contiguous batch of samples starting at `select`.
         #print("Selecting batch from {:} to {:}".format(select, select+to_take))
-        batch = samples[select:(select + to_take)]
+        # batch = samples[select:(select + to_take)]
+        batch = samples[0:(0 + to_take)]
 
         #print("Batch length:", len(batch))
 
@@ -179,7 +164,7 @@ def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_
         batch_ordered_labels.append([s[1] for s in batch])
 
         # Remove these samples from the list.
-        del samples[select:select + to_take]
+        del samples[0:0 + to_take]
 
     # print('\n  DONE - Selected {:,} batches.\n'.format(len(batch_ordered_sentences)))
     logger.info('\n  DONE - Selected {:,} batches.\n'.format(len(batch_ordered_sentences)))
@@ -265,12 +250,25 @@ def train_model(args: dict, hparams:dict):
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
     max_len = 0
 
-    if args.binary_classifier:        
-        samples = utils.read_pairwise(file, args.data_1, args.data_2, dataset_amount=args.dataset_amount)
-    else:
-        samples = utils.read_and_sample(file, dataset_amount=args.dataset_amount)
+    samples = utils.read_samples(file)
 
-    no_of_labels = len(np.unique(np.array([val[1] for val in samples])))
+    article_type_map = {}
+
+    if args.lcr:
+        samples = [[val[0].lower()+" [SEP] "+val[1].lower()+" [SEP] "+val[2].lower(), val[3], val[4]] for val in samples]        
+    else:
+        samples = [[val[0].lower()+" [SEP] "+val[1].lower(), val[2], val[3]] for val in samples]
+
+    for s in samples:
+        article_type_map[s[0]] = s[2]
+
+    # samples = samples[:100]
+    # if args.binary_classifier:        
+    #     samples = utils.read_pairwise(file, args.data_1, args.data_2, dataset_amount=args.dataset_amount)
+    # else:
+    #     samples = utils.read_and_sample(file, dataset_amount=args.dataset_amount)
+
+    no_of_labels = len(set([val[1] for val in samples]))
 
     logger.info("No of unique labels: "+str(no_of_labels))
 
@@ -299,6 +297,9 @@ def train_model(args: dict, hparams:dict):
         max_len = max(max_len, len(input_id['input_ids']))
 
     logger.info('Max text length: ' + str(max_len))
+
+    max_len = pow(2, math.ceil(math.log2(max_len)))
+    max_len = min(512, max_len)
     
     batch_size = args.batch_size
 
@@ -324,7 +325,7 @@ def train_model(args: dict, hparams:dict):
                     lr = args.learning_rate, # args.learning_rate - default is 5e-5, our notebook had 2e-5
                     eps = hparams["adam_epsilon"] # args.adam_epsilon  - default is 1e-8.
                     )
-    epochs = 4
+    epochs = args.n_epochs
 
     total_steps = len(train_input_ids) * epochs
 
@@ -339,6 +340,14 @@ def train_model(args: dict, hparams:dict):
 
     training_stats = []
 
+    correct_counts = {
+        "domestic": 0,
+        "international": 0
+    }
+    total_counts = {
+        "domestic": 0,
+        "international": 0
+    }
     for epoch_i in range(0, epochs):
         
         logger.info("")
@@ -355,9 +364,16 @@ def train_model(args: dict, hparams:dict):
             if step % 40 == 0 and not step == 0:               
                 logger.info('  Batch {:>5,}  of  {:>5,}. '.format(step, len(train_input_ids)))
 
-            b_input_ids = batch[0].to(device)
-            b_input_mask = batch[1].to(device)
-            b_labels = batch[2].to(device)           
+            b_input_ids = batch[0].to(device=device)
+            b_input_mask = batch[1].to(device=device)
+
+
+            b_labels = batch[2].to(device=device) 
+            
+            # Converting labels to float32 because I was getting some runtime error. 
+            # Not sure why we need to make labels float32. Keeping it Long or int64 works in case of headlines.
+            # b_labels = batch[2].to(device=device, dtype=torch.float32) 
+
 
             model.zero_grad()        
 
@@ -410,7 +426,11 @@ def train_model(args: dict, hparams:dict):
             label_ids = b_labels.to('cpu').numpy()
 
             total_eval_accuracy += flat_accuracy(logits, label_ids)
-            
+                        
+            for idx in range(batch_size):
+                pred = np.argmax(logits[idx]) == label_ids[idx]
+                tokens = tokenizer.convert_ids_to_tokens(b_input_ids[idx])
+                
 
         avg_val_accuracy = total_eval_accuracy / len(val_input_ids)
         logger.info("Accuracy: {0:.2f}".format(avg_val_accuracy))
@@ -464,26 +484,36 @@ if __name__=="__main__":
                     type=str,
                     required=False,
                     help="Accepted values - 'same size' or 'full'")
-    parser.add_argument("--binary_classifier",
+    # parser.add_argument("--binary_classifier",
+    #                 # type=bool,
+    #                 dest='binary_classifier',
+    #                 action='store_true',
+    #                 help="")
+    # parser.add_argument("--no_binary_classifier",
+    #                 # type=bool,
+    #                 dest='binary_classifier',
+    #                 action='store_false',
+    #                 help="")
+    parser.add_argument("--LCR",
                     # type=bool,
-                    dest='binary_classifier',
+                    dest='lcr',
                     action='store_true',
                     help="")
-    parser.add_argument("--no_binary_classifier",
+    parser.add_argument("--no_LCR",
                     # type=bool,
-                    dest='binary_classifier',
+                    dest='lcr',
                     action='store_false',
                     help="")
-    parser.add_argument("--data_1",
-                    default=0,
-                    type=int,
-                    required=False,
-                    help="left-0, center-1, right-2")
-    parser.add_argument("--data_2",
-                    default=2,
-                    type=int,
-                    required=False,
-                    help="left-0, center-1, right-2")
+    # parser.add_argument("--data_1",
+    #                 default=0,
+    #                 type=int,
+    #                 required=False,
+    #                 help="left-0, center-1, right-2")
+    # parser.add_argument("--data_2",
+    #                 default=2,
+    #                 type=int,
+    #                 required=False,
+    #                 help="left-0, center-1, right-2")
     parser.add_argument("--learning_rate",
                     default=2e-5,
                     type=float,
@@ -494,8 +524,14 @@ if __name__=="__main__":
                     type=int,
                     required=True,
                     help="")
+    parser.add_argument("--n_epochs",
+                    default=4,
+                    type=int,
+                    required=False,
+                    help="")
     
-    parser.set_defaults(binary_classifier=True)
+    # parser.set_defaults(binary_classifier=True)
+    parser.set_defaults(lcr=False)
 
 
 
