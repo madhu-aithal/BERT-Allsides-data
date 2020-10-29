@@ -3,6 +3,12 @@ import random
 import os
 import argparse
 
+
+'''
+Code to generate list of [<left_headline>, <right_headline>, <center_desc>, <label>]
+Here <center_desc> is same string value for all samples.
+The sublist [<left_headline>, <right_headline>, <center_desc>] is randomly shuffled.
+'''
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
  
@@ -38,4 +44,9 @@ if __name__ == "__main__":
 
     pickle.dump(data_with_same_center_desc, open(os.path.join(out_dir, args.output_filename), "wb"))
 
-    
+'''
+Command to run the code:
+python same_center_desc.py 
+--dataset_file "/data/madhu/allsides_scraped_data/new_data_oct_7/processed_data_with_article_type/right_labeled_article_headline_LR.pickle" 
+--output_filename "right_labeled_article_headline_LR_same_center_desc.pickle"
+'''

@@ -22,7 +22,6 @@ import random
 import math
 from torch.utils.tensorboard import SummaryWriter
 
-
 pp = pprint.PrettyPrinter(indent=4)
 myprint = pp.pprint
 
@@ -33,13 +32,15 @@ def flat_accuracy(preds, labels):
     return np.sum(pred_flat == labels_flat) / len(labels_flat)
 
 def train_model(args: dict, hparams:dict):
+
+    
     
     file = args.dataset_filepath
     # truncation = args.truncation
 
     seed_val = hparams["seed_val"]
     device = utils.get_device(device_no=args.device_no)
-    saves_dir = "saves/"
+    saves_dir = "saves/bert/"
 
     Path(saves_dir).mkdir(parents=True, exist_ok=True)   
     time = datetime.datetime.now()
@@ -48,6 +49,9 @@ def train_model(args: dict, hparams:dict):
     Path(saves_path).mkdir(parents=True, exist_ok=True)
 
     log_path = os.path.join(saves_path, "training.log")
+
+    summary_filename = os.path.join(saves_path, "tensorboard_summary")
+    writer = SummaryWriter(summary_filename)
 
     logging.basicConfig(filename=log_path, filemode='w', format='%(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
     logger=logging.getLogger()
@@ -104,6 +108,7 @@ def train_model(args: dict, hparams:dict):
     # train_samples_label = [val[1] for val in train_samples]
     # val_samples_text = [val[0] for val in val_samples]
     # val_samples_label = [val[1] for val in val_samples]
+
     samples_text = [val[0] for val in samples]
     samples_label = [val[1] for val in samples]
     if args.group_by_domestic:
@@ -218,6 +223,12 @@ def train_model(args: dict, hparams:dict):
     training_stats = []
     
     for epoch_i in range(0, epochs):
+
+        if len(training_stats) > 2:
+            if training_stats[-1]['validation_accuracy'] <= training_stats[-2]['validation_accuracy'] \
+                and training_stats[-2]['validation_accuracy'] <= training_stats[-3]['validation_accuracy']:
+                break
+
         correct_counts = {
             "domestic": 0,
             "international": 0
@@ -250,7 +261,6 @@ def train_model(args: dict, hparams:dict):
             # Not sure why we need to make labels float32. Keeping it Long or int64 works in case of headlines.
             # b_labels = batch[2].to(device=device, dtype=torch.float32) 
 
-
             model.zero_grad()        
 
             loss, logits = model(b_input_ids, 
@@ -260,17 +270,11 @@ def train_model(args: dict, hparams:dict):
 
             logits = logits.detach().cpu().numpy()
             label_ids = b_labels.to('cpu').numpy()
-
             total_train_accuracy += flat_accuracy(logits, label_ids)
-
             total_train_loss += loss.detach().cpu().numpy()
-
             loss.backward()
-
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-
             optimizer.step()
-
             scheduler.step()
 
             step+=1
@@ -338,14 +342,22 @@ def train_model(args: dict, hparams:dict):
         training_stats.append(
             {
                 'epoch': epoch_i + 1,
-                'Training Loss': avg_train_loss,
-                'Valid. Loss': avg_val_loss,
-                'Valid. Accur.': avg_val_accuracy,                
+                'training_loss': avg_train_loss,
+                'training_accuracy': avg_train_accuracy,
+                'validation_loss': avg_val_loss,
+                'validation_accuracy': avg_val_accuracy,
             }
         )
 
+        writer.add_scalars('losses_and_accuracies', {
+                    'training_loss': avg_train_loss,
+                    'training_accuracy': avg_train_accuracy,
+                    'validation_loss': avg_val_loss,
+                    'validation_accuracy': avg_val_accuracy,
+                }, epoch_i+1)
+
         model_save_path = os.path.join(saves_path, "model_"+str(epoch_i+1)+"epochs")
-        torch.save(model, model_save_path)
+        torch.save(model, model_save_path)        
 
     logger.info("")
     logger.info("Training complete!")
@@ -356,8 +368,6 @@ def train_model(args: dict, hparams:dict):
 
 
 if __name__=="__main__":   
-    
-
     parser = argparse.ArgumentParser()
 
     ## Required parameters

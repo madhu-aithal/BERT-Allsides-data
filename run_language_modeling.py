@@ -218,7 +218,8 @@ def main():
         config = CONFIG_MAPPING[model_args.model_type]()
         logger.warning("You are instantiating a new config instance from scratch.")
 
-    if model_args.tokenizer_name:
+    # Adding manually added tokens such as <LEFT>, <CENTER>, <BOS> etc., to the tokenizer
+    if model_args.tokenizer_name:        
         tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, cache_dir=model_args.cache_dir, 
         bos_token='<BOS>', eos_token='<EOS>', sep_token='<SEP>', additonal_special_tokens=['<LEFT>', '<CENTER>', '<RIGHT>'])
     elif model_args.model_name_or_path:
@@ -333,7 +334,7 @@ if __name__ == "__main__":
 
 
 '''
-python run_language_modeling.py --output_dir=output_gpt2 
+python run_language_modeling.py --output_dir=saves/gpt2/ 
   --model_type=gpt2   
   --model_name_or_path=gpt2    
   --do_train  --train_data_file=/data/madhu/allsides_scraped_data/new_data_oct_7/processed_data_gpt2/description_sep_headline_train.txt 

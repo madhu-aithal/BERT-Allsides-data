@@ -3,3 +3,5 @@ saves/
 __pycache__
 .vscode
 *.out
+runs/
+gpt2_data/
