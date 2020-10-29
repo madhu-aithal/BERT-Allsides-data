@@ -20,6 +20,8 @@ import pprint
 import json_lines
 import random
 import math
+from torch.utils.tensorboard import SummaryWriter
+
 
 pp = pprint.PrettyPrinter(indent=4)
 myprint = pp.pprint
@@ -29,196 +31,6 @@ def flat_accuracy(preds, labels):
     pred_flat = np.argmax(preds, axis=1).flatten()
     labels_flat = labels.flatten()
     return np.sum(pred_flat == labels_flat) / len(labels_flat)
-
-
-# def good_update_interval(total_iters, num_desired_updates):
-#     '''
-#     This function will try to pick an intelligent progress update interval 
-#     based on the magnitude of the total iterations.
-
-#     Parameters:
-#       `total_iters` - The number of iterations in the for-loop.
-#       `num_desired_updates` - How many times we want to see an update over the 
-#                               course of the for-loop.
-#     '''
-#     # Divide the total iterations by the desired number of updates. Most likely
-#     # this will be some ugly number.
-#     exact_interval = total_iters / num_desired_updates
-
-#     # The `round` function has the ability to round down a number to, e.g., the
-#     # nearest thousandth: round(exact_interval, -3)
-#     #
-#     # To determine the magnitude to round to, find the magnitude of the total,
-#     # and then go one magnitude below that.
-
-#     # Get the order of magnitude of the total.
-#     order_of_mag = len(str(total_iters)) - 1
-
-#     # Our update interval should be rounded to an order of magnitude smaller. 
-#     round_mag = order_of_mag - 1
-
-#     # Round down and cast to an int.
-#     update_interval = int(round(exact_interval, -round_mag))
-
-#     # Don't allow the interval to be zero!
-#     if update_interval == 0:
-#         update_interval = 1
-
-#     return update_interval
-
-# def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_len):
-#     '''
-#     This function combines all of the required steps to prepare batches.
-#     '''
-
-#     # print('Creating Smart Batches from {:,} examples with batch size {:,}...\n'.format(len(text_samples), batch_size))
-#     logger.info('Creating Smart Batches from {:,} examples with batch size {:,}...\n'.format(len(text_samples), batch_size))
-
-#     # =========================
-#     #   Tokenize & Truncate
-#     # =========================
-
-#     full_input_ids = []
-
-#     # Tokenize all training examples
-#     # print('Tokenizing {:,} samples...'.format(len(labels)))
-#     logger.info('Tokenizing {:,} samples...'.format(len(labels)))
-
-#     # Choose an interval on which to print progress updates.
-#     update_interval = good_update_interval(total_iters=len(labels), num_desired_updates=10)
-
-#     # For each training example...
-#     for text in text_samples:
-        
-#         # Report progress.
-#         if ((len(full_input_ids) % update_interval) == 0):
-#             # print('  Tokenized {:,} samples.'.format(len(full_input_ids)))
-#             logger.info('  Tokenized {:,} samples.'.format(len(full_input_ids)))
-
-#         # Tokenize the sample.
-#         input_ids = tokenizer(text=text,              # Text to encode.
-#                                     add_special_tokens=True, # Do add specials.
-#                                     max_length=max_len,      # Do Truncate!
-#                                     truncation=True,         # Do Truncate!
-#                                     padding=False)           # DO NOT pad.
-                                    
-#         # Add the tokenized result to our list.
-#         full_input_ids.append(input_ids)
-        
-#     # print('DONE.')    
-#     # print('{:>10,} samples\n'.format(len(full_input_ids)))
-
-#     logger.info('DONE.')    
-#     logger.info('{:>10,} samples\n'.format(len(full_input_ids)))
-
-
-#     # =========================
-#     #      Select Batches
-#     # =========================    
-
-#     # Sort the two lists together by the length of the input sequence.
-#     samples = sorted(zip(full_input_ids, labels), key=lambda x: len(x[0]['input_ids']))
-
-#     # print('{:>10,} samples after sorting\n'.format(len(samples)))
-#     logger.info('{:>10,} samples after sorting\n'.format(len(samples)))
-
-#     import random
-
-#     # List of batches that we'll construct.
-#     batch_ordered_sentences = []
-#     batch_ordered_labels = []
-
-#     # print('Creating batches of size {:}...'.format(batch_size))
-#     logger.info('Creating batches of size {:}...'.format(batch_size))
-
-#     # Choose an interval on which to print progress updates.
-#     update_interval = good_update_interval(total_iters=len(samples), num_desired_updates=10)
-    
-#     # Loop over all of the input samples...    
-#     while len(samples) > 0:
-        
-#         # Report progress.
-#         if ((len(batch_ordered_sentences) % update_interval) == 0 \
-#             and not len(batch_ordered_sentences) == 0):
-#             # print('  Selected {:,} batches.'.format(len(batch_ordered_sentences)))
-#             logger.info('  Selected {:,} batches.'.format(len(batch_ordered_sentences)))
-
-#         # `to_take` is our actual batch size. It will be `batch_size` until 
-#         # we get to the last batch, which may be smaller. 
-#         to_take = min(batch_size, len(samples))
-
-#         # Pick a random index in the list of remaining samples to start
-#         # our batch at.
-#         # select = random.randint(0, len(samples) - to_take)        
-
-#         # Select a contiguous batch of samples starting at `select`.
-#         #print("Selecting batch from {:} to {:}".format(select, select+to_take))
-#         # batch = samples[select:(select + to_take)]
-#         batch = samples[0:(0 + to_take)]
-
-#         #print("Batch length:", len(batch))
-
-#         # Each sample is a tuple--split them apart to create a separate list of 
-#         # sequences and a list of labels for this batch.
-#         batch_ordered_sentences.append([s[0] for s in batch])
-#         batch_ordered_labels.append([s[1] for s in batch])
-
-#         # Remove these samples from the list.
-#         del samples[0:0 + to_take]
-
-#     # print('\n  DONE - Selected {:,} batches.\n'.format(len(batch_ordered_sentences)))
-#     logger.info('\n  DONE - Selected {:,} batches.\n'.format(len(batch_ordered_sentences)))
-
-#     # =========================
-#     #        Add Padding
-#     # =========================    
-
-#     logger.info('Padding out sequences within each batch...')
-
-#     py_inputs = []
-#     py_attn_masks = []
-#     py_labels = []
-
-#     # For each batch...
-#     for (batch_inputs, batch_labels) in zip(batch_ordered_sentences, batch_ordered_labels):
-
-#         # New version of the batch, this time with padded sequences and now with
-#         # attention masks defined.
-#         batch_padded_inputs = []
-#         batch_attn_masks = []
-        
-#         # First, find the longest sample in the batch. 
-#         # Note that the sequences do currently include the special tokens!
-#         max_size = max([len(sen['input_ids']) for sen in batch_inputs])
-
-#         # For each input in this batch...
-#         for sen in batch_inputs:
-            
-#             # How many pad tokens do we need to add?
-#             num_pads = max_size - len(sen['input_ids'])
-
-#             # Add `num_pads` padding tokens to the end of the sequence.
-#             padded_input = sen['input_ids'] + [tokenizer.pad_token_id]*num_pads
-
-#             # Define the attention mask--it's just a `1` for every real token
-#             # and a `0` for every padding token.
-#             attn_mask = [1] * len(sen['attention_mask']) + [0] * num_pads
-
-#             # Add the padded results to the batch.
-#             batch_padded_inputs.append(padded_input)
-#             batch_attn_masks.append(attn_mask)
-
-#         # Our batch has been padded, so we need to save this updated batch.
-#         # We also need the inputs to be PyTorch tensors, so we'll do that here.
-#         # Todo - Michael's code specified "dtype=torch.long"
-#         py_inputs.append(torch.tensor(batch_padded_inputs))
-#         py_attn_masks.append(torch.tensor(batch_attn_masks))
-#         py_labels.append(torch.tensor(batch_labels))
-    
-#     logger.info('  DONE.')
-
-#     # Return the smart-batched dataset!
-#     return (py_inputs, py_attn_masks, py_labels)
 
 def train_model(args: dict, hparams:dict):
     
@@ -420,6 +232,7 @@ def train_model(args: dict, hparams:dict):
         logger.info('Training...')
         
         total_train_loss = 0
+        total_train_accuracy = 0
 
         model.train()
 
@@ -445,6 +258,11 @@ def train_model(args: dict, hparams:dict):
                                 attention_mask=b_input_mask, 
                                 labels=b_labels)
 
+            logits = logits.detach().cpu().numpy()
+            label_ids = b_labels.to('cpu').numpy()
+
+            total_train_accuracy += flat_accuracy(logits, label_ids)
+
             total_train_loss += loss.detach().cpu().numpy()
 
             loss.backward()
@@ -456,6 +274,10 @@ def train_model(args: dict, hparams:dict):
             scheduler.step()
 
             step+=1
+
+        avg_train_accuracy = total_train_accuracy / len(train_dataloader)
+        logger.info("")
+        logger.info("Average training accuracy: {0:.2f}".format(avg_train_accuracy))
         
         avg_train_loss = total_train_loss / len(train_dataloader)            
 
@@ -502,7 +324,7 @@ def train_model(args: dict, hparams:dict):
                     
 
         avg_val_accuracy = total_eval_accuracy / len(validation_dataloader)
-        logger.info("Accuracy: {0:.2f}".format(avg_val_accuracy))
+        logger.info("Avg validation accuracy: {0:.2f}".format(avg_val_accuracy))
 
         if args.group_by_domestic:
             avg_val_accuracy_domestic = correct_counts["domestic"]/total_counts["domestic"]
