@@ -103,16 +103,18 @@ def read_samples_util_LCR(key, articles, left_labeled_data_LCR, right_labeled_da
 
     return left_labeled_data_LCR, right_labeled_data_LCR
 
-def process_selected_samples(domestic_articles, out_dir, args):    
+def process_selected_samples(articles, out_dir, args):    
     left_labeled_data_LR = []
     right_labeled_data_LR = []
     left_labeled_data_LCR = []
     right_labeled_data_LCR = []
+    left_labeled_data_L_CenterDesc_R = []
+    right_labeled_data_L_CenterDesc_R = []
     
-    for item in domestic_articles:                                    
+    for item in articles:                                    
         left_labeled_data_LR, right_labeled_data_LR = read_samples_util_LR(args.data_type, item['articles'], left_labeled_data_LR, right_labeled_data_LR, item["type"])            
         # left_labeled_data_LCR, right_labeled_data_LCR = read_samples_util_LCR(args.data_type, item['articles'], left_labeled_data_LCR, right_labeled_data_LCR)                    
-        left_labeled_data_LCR, right_labeled_data_LCR = read_samples_util_Left_Center_Desc_Right(args.data_type, item['articles'], left_labeled_data_LCR, right_labeled_data_LCR, item["type"])            
+        left_labeled_data_L_CenterDesc_R, right_labeled_data_L_CenterDesc_R = read_samples_util_Left_Center_Desc_Right(args.data_type, item['articles'], left_labeled_data_L_CenterDesc_R, right_labeled_data_L_CenterDesc_R, item["type"])
 
     Path(out_dir).mkdir(parents=True, exist_ok=True)           
 

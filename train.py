@@ -31,194 +31,194 @@ def flat_accuracy(preds, labels):
     return np.sum(pred_flat == labels_flat) / len(labels_flat)
 
 
-def good_update_interval(total_iters, num_desired_updates):
-    '''
-    This function will try to pick an intelligent progress update interval 
-    based on the magnitude of the total iterations.
+# def good_update_interval(total_iters, num_desired_updates):
+#     '''
+#     This function will try to pick an intelligent progress update interval 
+#     based on the magnitude of the total iterations.
 
-    Parameters:
-      `total_iters` - The number of iterations in the for-loop.
-      `num_desired_updates` - How many times we want to see an update over the 
-                              course of the for-loop.
-    '''
-    # Divide the total iterations by the desired number of updates. Most likely
-    # this will be some ugly number.
-    exact_interval = total_iters / num_desired_updates
+#     Parameters:
+#       `total_iters` - The number of iterations in the for-loop.
+#       `num_desired_updates` - How many times we want to see an update over the 
+#                               course of the for-loop.
+#     '''
+#     # Divide the total iterations by the desired number of updates. Most likely
+#     # this will be some ugly number.
+#     exact_interval = total_iters / num_desired_updates
 
-    # The `round` function has the ability to round down a number to, e.g., the
-    # nearest thousandth: round(exact_interval, -3)
-    #
-    # To determine the magnitude to round to, find the magnitude of the total,
-    # and then go one magnitude below that.
+#     # The `round` function has the ability to round down a number to, e.g., the
+#     # nearest thousandth: round(exact_interval, -3)
+#     #
+#     # To determine the magnitude to round to, find the magnitude of the total,
+#     # and then go one magnitude below that.
 
-    # Get the order of magnitude of the total.
-    order_of_mag = len(str(total_iters)) - 1
+#     # Get the order of magnitude of the total.
+#     order_of_mag = len(str(total_iters)) - 1
 
-    # Our update interval should be rounded to an order of magnitude smaller. 
-    round_mag = order_of_mag - 1
+#     # Our update interval should be rounded to an order of magnitude smaller. 
+#     round_mag = order_of_mag - 1
 
-    # Round down and cast to an int.
-    update_interval = int(round(exact_interval, -round_mag))
+#     # Round down and cast to an int.
+#     update_interval = int(round(exact_interval, -round_mag))
 
-    # Don't allow the interval to be zero!
-    if update_interval == 0:
-        update_interval = 1
+#     # Don't allow the interval to be zero!
+#     if update_interval == 0:
+#         update_interval = 1
 
-    return update_interval
+#     return update_interval
 
-def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_len):
-    '''
-    This function combines all of the required steps to prepare batches.
-    '''
+# def make_smart_batches(text_samples, labels, batch_size, logger, tokenizer, max_len):
+#     '''
+#     This function combines all of the required steps to prepare batches.
+#     '''
 
-    # print('Creating Smart Batches from {:,} examples with batch size {:,}...\n'.format(len(text_samples), batch_size))
-    logger.info('Creating Smart Batches from {:,} examples with batch size {:,}...\n'.format(len(text_samples), batch_size))
+#     # print('Creating Smart Batches from {:,} examples with batch size {:,}...\n'.format(len(text_samples), batch_size))
+#     logger.info('Creating Smart Batches from {:,} examples with batch size {:,}...\n'.format(len(text_samples), batch_size))
 
-    # =========================
-    #   Tokenize & Truncate
-    # =========================
+#     # =========================
+#     #   Tokenize & Truncate
+#     # =========================
 
-    full_input_ids = []
+#     full_input_ids = []
 
-    # Tokenize all training examples
-    # print('Tokenizing {:,} samples...'.format(len(labels)))
-    logger.info('Tokenizing {:,} samples...'.format(len(labels)))
+#     # Tokenize all training examples
+#     # print('Tokenizing {:,} samples...'.format(len(labels)))
+#     logger.info('Tokenizing {:,} samples...'.format(len(labels)))
 
-    # Choose an interval on which to print progress updates.
-    update_interval = good_update_interval(total_iters=len(labels), num_desired_updates=10)
+#     # Choose an interval on which to print progress updates.
+#     update_interval = good_update_interval(total_iters=len(labels), num_desired_updates=10)
 
-    # For each training example...
-    for text in text_samples:
+#     # For each training example...
+#     for text in text_samples:
         
-        # Report progress.
-        if ((len(full_input_ids) % update_interval) == 0):
-            # print('  Tokenized {:,} samples.'.format(len(full_input_ids)))
-            logger.info('  Tokenized {:,} samples.'.format(len(full_input_ids)))
+#         # Report progress.
+#         if ((len(full_input_ids) % update_interval) == 0):
+#             # print('  Tokenized {:,} samples.'.format(len(full_input_ids)))
+#             logger.info('  Tokenized {:,} samples.'.format(len(full_input_ids)))
 
-        # Tokenize the sample.
-        input_ids = tokenizer(text=text,              # Text to encode.
-                                    add_special_tokens=True, # Do add specials.
-                                    max_length=max_len,      # Do Truncate!
-                                    truncation=True,         # Do Truncate!
-                                    padding=False)           # DO NOT pad.
+#         # Tokenize the sample.
+#         input_ids = tokenizer(text=text,              # Text to encode.
+#                                     add_special_tokens=True, # Do add specials.
+#                                     max_length=max_len,      # Do Truncate!
+#                                     truncation=True,         # Do Truncate!
+#                                     padding=False)           # DO NOT pad.
                                     
-        # Add the tokenized result to our list.
-        full_input_ids.append(input_ids)
+#         # Add the tokenized result to our list.
+#         full_input_ids.append(input_ids)
         
-    # print('DONE.')    
-    # print('{:>10,} samples\n'.format(len(full_input_ids)))
+#     # print('DONE.')    
+#     # print('{:>10,} samples\n'.format(len(full_input_ids)))
 
-    logger.info('DONE.')    
-    logger.info('{:>10,} samples\n'.format(len(full_input_ids)))
+#     logger.info('DONE.')    
+#     logger.info('{:>10,} samples\n'.format(len(full_input_ids)))
 
 
-    # =========================
-    #      Select Batches
-    # =========================    
+#     # =========================
+#     #      Select Batches
+#     # =========================    
 
-    # Sort the two lists together by the length of the input sequence.
-    samples = sorted(zip(full_input_ids, labels), key=lambda x: len(x[0]['input_ids']))
+#     # Sort the two lists together by the length of the input sequence.
+#     samples = sorted(zip(full_input_ids, labels), key=lambda x: len(x[0]['input_ids']))
 
-    # print('{:>10,} samples after sorting\n'.format(len(samples)))
-    logger.info('{:>10,} samples after sorting\n'.format(len(samples)))
+#     # print('{:>10,} samples after sorting\n'.format(len(samples)))
+#     logger.info('{:>10,} samples after sorting\n'.format(len(samples)))
 
-    import random
+#     import random
 
-    # List of batches that we'll construct.
-    batch_ordered_sentences = []
-    batch_ordered_labels = []
+#     # List of batches that we'll construct.
+#     batch_ordered_sentences = []
+#     batch_ordered_labels = []
 
-    # print('Creating batches of size {:}...'.format(batch_size))
-    logger.info('Creating batches of size {:}...'.format(batch_size))
+#     # print('Creating batches of size {:}...'.format(batch_size))
+#     logger.info('Creating batches of size {:}...'.format(batch_size))
 
-    # Choose an interval on which to print progress updates.
-    update_interval = good_update_interval(total_iters=len(samples), num_desired_updates=10)
+#     # Choose an interval on which to print progress updates.
+#     update_interval = good_update_interval(total_iters=len(samples), num_desired_updates=10)
     
-    # Loop over all of the input samples...    
-    while len(samples) > 0:
+#     # Loop over all of the input samples...    
+#     while len(samples) > 0:
         
-        # Report progress.
-        if ((len(batch_ordered_sentences) % update_interval) == 0 \
-            and not len(batch_ordered_sentences) == 0):
-            # print('  Selected {:,} batches.'.format(len(batch_ordered_sentences)))
-            logger.info('  Selected {:,} batches.'.format(len(batch_ordered_sentences)))
+#         # Report progress.
+#         if ((len(batch_ordered_sentences) % update_interval) == 0 \
+#             and not len(batch_ordered_sentences) == 0):
+#             # print('  Selected {:,} batches.'.format(len(batch_ordered_sentences)))
+#             logger.info('  Selected {:,} batches.'.format(len(batch_ordered_sentences)))
 
-        # `to_take` is our actual batch size. It will be `batch_size` until 
-        # we get to the last batch, which may be smaller. 
-        to_take = min(batch_size, len(samples))
+#         # `to_take` is our actual batch size. It will be `batch_size` until 
+#         # we get to the last batch, which may be smaller. 
+#         to_take = min(batch_size, len(samples))
 
-        # Pick a random index in the list of remaining samples to start
-        # our batch at.
-        # select = random.randint(0, len(samples) - to_take)        
+#         # Pick a random index in the list of remaining samples to start
+#         # our batch at.
+#         # select = random.randint(0, len(samples) - to_take)        
 
-        # Select a contiguous batch of samples starting at `select`.
-        #print("Selecting batch from {:} to {:}".format(select, select+to_take))
-        # batch = samples[select:(select + to_take)]
-        batch = samples[0:(0 + to_take)]
+#         # Select a contiguous batch of samples starting at `select`.
+#         #print("Selecting batch from {:} to {:}".format(select, select+to_take))
+#         # batch = samples[select:(select + to_take)]
+#         batch = samples[0:(0 + to_take)]
 
-        #print("Batch length:", len(batch))
+#         #print("Batch length:", len(batch))
 
-        # Each sample is a tuple--split them apart to create a separate list of 
-        # sequences and a list of labels for this batch.
-        batch_ordered_sentences.append([s[0] for s in batch])
-        batch_ordered_labels.append([s[1] for s in batch])
+#         # Each sample is a tuple--split them apart to create a separate list of 
+#         # sequences and a list of labels for this batch.
+#         batch_ordered_sentences.append([s[0] for s in batch])
+#         batch_ordered_labels.append([s[1] for s in batch])
 
-        # Remove these samples from the list.
-        del samples[0:0 + to_take]
+#         # Remove these samples from the list.
+#         del samples[0:0 + to_take]
 
-    # print('\n  DONE - Selected {:,} batches.\n'.format(len(batch_ordered_sentences)))
-    logger.info('\n  DONE - Selected {:,} batches.\n'.format(len(batch_ordered_sentences)))
+#     # print('\n  DONE - Selected {:,} batches.\n'.format(len(batch_ordered_sentences)))
+#     logger.info('\n  DONE - Selected {:,} batches.\n'.format(len(batch_ordered_sentences)))
 
-    # =========================
-    #        Add Padding
-    # =========================    
+#     # =========================
+#     #        Add Padding
+#     # =========================    
 
-    logger.info('Padding out sequences within each batch...')
+#     logger.info('Padding out sequences within each batch...')
 
-    py_inputs = []
-    py_attn_masks = []
-    py_labels = []
+#     py_inputs = []
+#     py_attn_masks = []
+#     py_labels = []
 
-    # For each batch...
-    for (batch_inputs, batch_labels) in zip(batch_ordered_sentences, batch_ordered_labels):
+#     # For each batch...
+#     for (batch_inputs, batch_labels) in zip(batch_ordered_sentences, batch_ordered_labels):
 
-        # New version of the batch, this time with padded sequences and now with
-        # attention masks defined.
-        batch_padded_inputs = []
-        batch_attn_masks = []
+#         # New version of the batch, this time with padded sequences and now with
+#         # attention masks defined.
+#         batch_padded_inputs = []
+#         batch_attn_masks = []
         
-        # First, find the longest sample in the batch. 
-        # Note that the sequences do currently include the special tokens!
-        max_size = max([len(sen['input_ids']) for sen in batch_inputs])
+#         # First, find the longest sample in the batch. 
+#         # Note that the sequences do currently include the special tokens!
+#         max_size = max([len(sen['input_ids']) for sen in batch_inputs])
 
-        # For each input in this batch...
-        for sen in batch_inputs:
+#         # For each input in this batch...
+#         for sen in batch_inputs:
             
-            # How many pad tokens do we need to add?
-            num_pads = max_size - len(sen['input_ids'])
+#             # How many pad tokens do we need to add?
+#             num_pads = max_size - len(sen['input_ids'])
 
-            # Add `num_pads` padding tokens to the end of the sequence.
-            padded_input = sen['input_ids'] + [tokenizer.pad_token_id]*num_pads
+#             # Add `num_pads` padding tokens to the end of the sequence.
+#             padded_input = sen['input_ids'] + [tokenizer.pad_token_id]*num_pads
 
-            # Define the attention mask--it's just a `1` for every real token
-            # and a `0` for every padding token.
-            attn_mask = [1] * len(sen['attention_mask']) + [0] * num_pads
+#             # Define the attention mask--it's just a `1` for every real token
+#             # and a `0` for every padding token.
+#             attn_mask = [1] * len(sen['attention_mask']) + [0] * num_pads
 
-            # Add the padded results to the batch.
-            batch_padded_inputs.append(padded_input)
-            batch_attn_masks.append(attn_mask)
+#             # Add the padded results to the batch.
+#             batch_padded_inputs.append(padded_input)
+#             batch_attn_masks.append(attn_mask)
 
-        # Our batch has been padded, so we need to save this updated batch.
-        # We also need the inputs to be PyTorch tensors, so we'll do that here.
-        # Todo - Michael's code specified "dtype=torch.long"
-        py_inputs.append(torch.tensor(batch_padded_inputs))
-        py_attn_masks.append(torch.tensor(batch_attn_masks))
-        py_labels.append(torch.tensor(batch_labels))
+#         # Our batch has been padded, so we need to save this updated batch.
+#         # We also need the inputs to be PyTorch tensors, so we'll do that here.
+#         # Todo - Michael's code specified "dtype=torch.long"
+#         py_inputs.append(torch.tensor(batch_padded_inputs))
+#         py_attn_masks.append(torch.tensor(batch_attn_masks))
+#         py_labels.append(torch.tensor(batch_labels))
     
-    logger.info('  DONE.')
+#     logger.info('  DONE.')
 
-    # Return the smart-batched dataset!
-    return (py_inputs, py_attn_masks, py_labels)
+#     # Return the smart-batched dataset!
+#     return (py_inputs, py_attn_masks, py_labels)
 
 def train_model(args: dict, hparams:dict):
     
@@ -254,20 +254,22 @@ def train_model(args: dict, hparams:dict):
 
     article_type_map = {}
 
-    if args.lcr:
-        samples = [[val[0].lower()+" [SEP] "+val[1].lower()+" [SEP] "+val[2].lower(), val[3], val[4]] for val in samples]        
-    else:
-        samples = [[val[0].lower()+" [SEP] "+val[1].lower(), val[2], val[3]] for val in samples]
-
-    samples_new = []
-    for s in samples:
-        # article_type_map[s[0]] = s[2]
-        if s[2] == "domestic":
-            samples_new.append([s[0], s[1], 0])
+    if not args.nonpair_data:        
+        if args.lcr:
+            samples = [[val[0].lower()+" [SEP] "+val[1].lower()+" [SEP] "+val[2].lower(), val[3], val[4]] for val in samples]        
         else:
-            samples_new.append([s[0], s[1], 1])
+            samples = [[val[0].lower()+" [SEP] "+val[1].lower(), val[2], val[3]] for val in samples]
 
-    samples = samples_new
+    if args.group_by_domestic:
+        samples_new = []
+        for s in samples:
+            # article_type_map[s[0]] = s[2]
+            if s[2] == "domestic":
+                samples_new.append([s[0], s[1], 0])
+            else:
+                samples_new.append([s[0], s[1], 1])
+
+        samples = samples_new
     # samples = samples[:100]
     # if args.binary_classifier:        
     #     samples = utils.read_pairwise(file, args.data_1, args.data_2, dataset_amount=args.dataset_amount)
@@ -292,7 +294,8 @@ def train_model(args: dict, hparams:dict):
     # val_samples_label = [val[1] for val in val_samples]
     samples_text = [val[0] for val in samples]
     samples_label = [val[1] for val in samples]
-    samples_article_type = [val[2] for val in samples]
+    if args.group_by_domestic:
+        samples_article_type = [val[2] for val in samples]
 
     max_len = 0
 
@@ -339,10 +342,14 @@ def train_model(args: dict, hparams:dict):
     input_ids = torch.cat(input_ids, dim=0)
     attention_masks = torch.cat(attention_masks, dim=0)
     labels = torch.tensor(samples_label)
-    samples_article_type_tensor = torch.tensor(samples_article_type)
+    if args.group_by_domestic:
+        samples_article_type_tensor = torch.tensor(samples_article_type)
 
     # Combine the training inputs into a TensorDataset.
-    dataset = TensorDataset(input_ids, attention_masks, labels, samples_article_type_tensor)
+    if args.group_by_domestic:
+        dataset = TensorDataset(input_ids, attention_masks, labels, samples_article_type_tensor)
+    else:
+        dataset = TensorDataset(input_ids, attention_masks, labels)
 
     # (train_input_ids, train_attention_masks, train_samples_label_tensor) = make_smart_batches(train_samples_text, train_samples_label, batch_size, logger, tokenizer, max_len)
     # (val_input_ids, val_attention_masks, val_samples_label_tensor) = make_smart_batches(val_samples_text, val_samples_label, batch_size, logger, tokenizer, max_len)
@@ -397,15 +404,7 @@ def train_model(args: dict, hparams:dict):
     torch.cuda.manual_seed_all(seed_val)
 
     training_stats = []
-
-    correct_counts = {
-        "domestic": 0,
-        "international": 0
-    }
-    total_counts = {
-        "domestic": 0,
-        "international": 0
-    }
+    
     for epoch_i in range(0, epochs):
         correct_counts = {
             "domestic": 0,
@@ -476,7 +475,8 @@ def train_model(args: dict, hparams:dict):
             b_input_ids = batch[0].to(device)
             b_input_mask = batch[1].to(device)
             b_labels = batch[2].to(device)
-            b_article_types = batch[3].to(device)
+            if args.group_by_domestic:
+                b_article_types = batch[3].to(device)
             
             with torch.no_grad():        
 
@@ -491,25 +491,23 @@ def train_model(args: dict, hparams:dict):
             label_ids = b_labels.to('cpu').numpy()
 
             total_eval_accuracy += flat_accuracy(logits, label_ids)
-                        
-            for idx in range(len(b_labels)):
-                pred = np.argmax(logits[idx]) == label_ids[idx]
-                # input_text = tokenizer.convert_ids_to_tokens(b_input_ids[idx])
-                # input_text_str = " ".join(input_text)
-                # print(input_text_str)
-                # print(pred)
-                if b_article_types[idx] == 0:
-                    if pred == True:
-                        correct_counts["domestic"] += 1
-                    total_counts["domestic"] += 1
+
+            if args.group_by_domestic:   
+                for idx in range(len(b_labels)):
+                    pred = np.argmax(logits[idx]) == label_ids[idx]
+                    if b_article_types[idx] == 0:
+                        if pred == True:
+                            correct_counts["domestic"] += 1
+                        total_counts["domestic"] += 1
                     
 
         avg_val_accuracy = total_eval_accuracy / len(validation_dataloader)
         logger.info("Accuracy: {0:.2f}".format(avg_val_accuracy))
 
-        avg_val_accuracy_domestic = correct_counts["domestic"]/total_counts["domestic"]
+        if args.group_by_domestic:
+            avg_val_accuracy_domestic = correct_counts["domestic"]/total_counts["domestic"]
 
-        logger.info("Domestic validation accuracy: {0:.2f}".format(avg_val_accuracy_domestic))
+            logger.info("Domestic validation accuracy: {0:.2f}".format(avg_val_accuracy_domestic))
 
         avg_val_loss = total_eval_loss / len(validation_dataloader)
                
@@ -580,6 +578,16 @@ if __name__=="__main__":
                     dest='lcr',
                     action='store_false',
                     help="")
+    parser.add_argument("--nonpair_data",
+                    # type=bool,
+                    dest='nonpair_data',
+                    action='store_true',
+                    help="")    
+    parser.add_argument("--group_by_domestic",
+                    # type=bool,
+                    dest='group_by_domestic',
+                    action='store_true',
+                    help="")    
     # parser.add_argument("--data_1",
     #                 default=0,
     #                 type=int,
@@ -608,9 +616,9 @@ if __name__=="__main__":
     
     # parser.set_defaults(binary_classifier=True)
     parser.set_defaults(lcr=False)
-
-
-
+    parser.set_defaults(nonpair_data=False)
+    parser.set_defaults(group_by_domestic=False)
+    
     args = parser.parse_args()
 
     hyperparams = [       
@@ -627,5 +635,10 @@ if __name__=="__main__":
         # myprint(f"hparams: {hparams}")
         train_model(args, hparams)
         
+'''
+How to run:
+1. nohup python train.py --dataset_filepath \
+    "/data/madhu/allsides_scraped_data/new_data_sept_25/processed_data/left_labeled_article_headline_LR.pickle" \
+    --device_no 1 --batch_size 64 --n_epochs 12 --LCR &> nohup_left_labeled_article_headline_LR.out &
 
-    
+'''
