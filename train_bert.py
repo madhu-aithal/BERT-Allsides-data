@@ -221,6 +221,13 @@ def train_model(args: dict, hparams:dict):
     torch.cuda.manual_seed_all(seed_val)
 
     training_stats = []
+    best_stats = {
+        'epoch': 0,
+        'training_loss': -sys.maxsize,
+        'training_accuracy': -sys.maxsize,
+        'validation_loss': -sys.maxsize,
+        'validation_accuracy': -sys.maxsize,
+    }
     
     for epoch_i in range(0, epochs):
 
@@ -348,20 +355,35 @@ def train_model(args: dict, hparams:dict):
                 'validation_accuracy': avg_val_accuracy,
             }
         )
+        if avg_val_accuracy > best_stats['validation_accuracy']:
+            best_stats = {
+                'epoch': epoch_i + 1,
+                'training_loss': avg_train_loss,
+                'training_accuracy': avg_train_accuracy,
+                'validation_loss': avg_val_loss,
+                'validation_accuracy': avg_val_accuracy,
+            }
 
         writer.add_scalars('losses_and_accuracies', {
-                    'training_loss': avg_train_loss,
-                    'training_accuracy': avg_train_accuracy,
-                    'validation_loss': avg_val_loss,
-                    'validation_accuracy': avg_val_accuracy,
-                }, epoch_i+1)
+            'training_loss': avg_train_loss,
+            'training_accuracy': avg_train_accuracy,
+            'validation_loss': avg_val_loss,
+            'validation_accuracy': avg_val_accuracy,
+        }, epoch_i+1)
 
         model_save_path = os.path.join(saves_path, "model_"+str(epoch_i+1)+"epochs")
         torch.save(model, model_save_path)        
 
     logger.info("")
     logger.info("Training complete!")
+    logger.info("Best stats")     
+    logger.info("training_accuracy: {}".format(best_stats['training_loss']))
+    logger.info("training_loss: {}".format(best_stats['training_loss']))
+    logger.info("validation_accuracy: {}".format(best_stats['validation_accuracy']))
+    logger.info("validation_loss: {}".format(best_stats['validation_loss']))
+
     handlers = logger.handlers[:]
+    
     for handler in handlers:
         handler.close()
         logger.removeHandler(handler)
@@ -419,7 +441,7 @@ if __name__=="__main__":
                     # type=bool,
                     dest='group_by_domestic',
                     action='store_true',
-                    help="")    
+                    help="")
     # parser.add_argument("--data_1",
     #                 default=0,
     #                 type=int,
@@ -472,5 +494,10 @@ How to run:
 1. nohup python train.py --dataset_filepath \
     "/data/madhu/allsides_scraped_data/new_data_sept_25/processed_data/left_labeled_article_headline_LR.pickle" \
     --device_no 1 --batch_size 64 --n_epochs 12 --LCR &> nohup_left_labeled_article_headline_LR.out &
+
+New command - Oct 29
+2. nohup python train_bert.py --dataset_filepath 
+/data/madhu/allsides_scraped_data/new_data_oct_7/processed_data_with_article_type/left_labeled_article_headline_LR.pickle 
+--device_no 1 --batch_size 64 --n_epochs 16 --no_LCR &> nohup_left_labeled_headline_LR.out &
 
 '''

@@ -334,9 +334,9 @@ if __name__ == "__main__":
 
 
 '''
-python run_language_modeling.py --output_dir=saves/gpt2/ 
+python run_language_modeling_gpt2.py --output_dir=saves/gpt2/ 
   --model_type=gpt2   
-  --model_name_or_path=gpt2    
+  --model_name_or_path=gpt2
   --do_train  --train_data_file=/data/madhu/allsides_scraped_data/new_data_oct_7/processed_data_gpt2/description_sep_headline_train.txt 
   --do_eval --eval_data_file=/data/madhu/allsides_scraped_data/new_data_oct_7/processed_data_gpt2/description_sep_headline_val.txt 
   --per_device_train_batch_size=1 --per_device_eval_batch_size=1

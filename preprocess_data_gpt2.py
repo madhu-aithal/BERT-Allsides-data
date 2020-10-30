@@ -51,25 +51,34 @@ def read_samples_description_sep_headline(in_file, out_dir, args):
     headline_desc_pair_data = []
 
     # desc_sep_headline_output_file = open(os.path.join(out_dir, "description_sep_headline.txt"), "w")
-    desc_sep_headline_output_file_prefix = "description_sep_headline"
+    newsdesc_sep_headline_output_file_prefix = "description_sep_headline"
+    newsdesc_sep_ideologylabel_headline_output_file_prefix = "description_sep_ideologylabel_headline"
     allsides_desc_sep_LCR_headline_output_file_prefix = "allsides_desc_sep_LCR_headline"
     allsides_desc_news_desc_ideology_headline_output_file_prefix = "allsides_desc_news_desc_ideology_headline"
 
-    desc_sep_headline_data = []
+    newsdesc_sep_headline_data = []
+    newsdesc_ideology_headline_data = []
     allsides_desc_sep_ideology_headline_data = []
     allsides_desc_news_desc_ideology_headline_data = []
 
     with json_lines.open(in_file) as f:
         for item in f:
             for article in item["articles"]:
-                desc_sep_headline_data.append("<BOS> "+article["article_description"].lower().replace("\n", " ") +" <SEP> "+article["article_headline"].replace("\n", " ")+" <EOS>")
+                newsdesc_sep_headline_data.append("<BOS> "+article["article_description"].lower().replace("\n", " ") +" <SEP> "+article["article_headline"].replace("\n", " ")+" <EOS>")
+                
+                ideology_label = "<"+article["political_spectrum"].upper()+">"
+                newsdesc_ideology_headline_data.append("<BOS> "+article["article_description"].lower().replace("\n", " ") +" <SEP> "+ideology_label+article["article_headline"].replace("\n", " ")+" <EOS>")
 
             allsides_desc_sep_ideology_headline_data = get_allsides_desc_ideology_headline(allsides_desc_sep_ideology_headline_data, item)            
             allsides_desc_news_desc_ideology_headline_data = get_allsides_desc_news_desc_ideology_headline(allsides_desc_news_desc_ideology_headline_data, item)
 
-        write_to_text_file_util(desc_sep_headline_data, \
+        write_to_text_file_util(newsdesc_sep_headline_data, \
             out_dir, \
-            desc_sep_headline_output_file_prefix)
+            newsdesc_sep_headline_output_file_prefix)
+
+        write_to_text_file_util(newsdesc_ideology_headline_data, \
+            out_dir, \
+            newsdesc_sep_ideologylabel_headline_output_file_prefix)
 
         write_to_text_file_util(allsides_desc_sep_ideology_headline_data, \
             out_dir, \
